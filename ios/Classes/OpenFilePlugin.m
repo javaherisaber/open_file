@@ -103,6 +103,9 @@ TopViewControllerForViewController(UIViewController *viewController) {
             }
             @try {
                 BOOL previewSucceeded = [_documentController presentPreviewAnimated:YES];
+                if (@available(iOS 18.0, *)) {
+                    sleep(1);
+                }
                 if(!previewSucceeded){
                     UIViewController *rootViewController = RootViewController();
                     UIViewController *viewController =
