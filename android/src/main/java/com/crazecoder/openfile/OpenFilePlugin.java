@@ -39,45 +39,72 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-
-/**
- * OpenFilePlugin
- */
 public class OpenFilePlugin implements MethodCallHandler
         , FlutterPlugin
         , ActivityAware
         , PluginRegistry.RequestPermissionsResultListener
         , PluginRegistry.ActivityResultListener {
-    /**
-     * Plugin registration.
-     */
-    private @Nullable
-    FlutterPluginBinding flutterPluginBinding;
 
+    private @Nullable FlutterPluginBinding flutterPluginBinding;
     private Context context;
     private Activity activity;
     private MethodChannel channel;
-
-
     private Result result;
     private String filePath;
     private String typeString;
-
     private boolean isResultSubmitted = false;
 
     private static final int REQUEST_CODE = 33432;
     private static final int RESULT_CODE = 0x12;
     private static final String TYPE_STRING_APK = "application/vnd.android.package-archive";
 
-    @Deprecated
-    public static void registerWith(PluginRegistry.Registrar registrar) {
-        OpenFilePlugin plugin = new OpenFilePlugin();
-        plugin.activity = registrar.activity();
-        plugin.context = registrar.context();
-        plugin.channel = new MethodChannel(registrar.messenger(), "open_file");
-        plugin.channel.setMethodCallHandler(plugin);
-        registrar.addRequestPermissionsResultListener(plugin);
-        registrar.addActivityResultListener(plugin);
+    @Override
+    public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
+        this.flutterPluginBinding = binding;
+        context = flutterPluginBinding.getApplicationContext();
+        setup();
+    }
+
+    private void setup() {
+        if (flutterPluginBinding != null) {
+            channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "open_file");
+            channel.setMethodCallHandler(this);
+        }
+    }
+
+    @Override
+    public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+        if (channel != null) {
+            channel.setMethodCallHandler(null);
+            channel = null;
+        }
+        this.flutterPluginBinding = null;
+    }
+
+    @Override
+    public void onAttachedToActivity(ActivityPluginBinding binding) {
+        activity = binding.getActivity();
+        binding.addRequestPermissionsResultListener(this);
+        binding.addActivityResultListener(this);
+    }
+
+    @Override
+    public void onDetachedFromActivityForConfigChanges() {
+        onDetachedFromActivity();
+    }
+
+    @Override
+    public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
+        onAttachedToActivity(binding);
+    }
+
+    @Override
+    public void onDetachedFromActivity() {
+        if (channel != null) {
+            channel.setMethodCallHandler(null);
+            channel = null;
+        }
+        activity = null;
     }
 
     private boolean hasPermission(String permission) {
@@ -394,57 +421,5 @@ public class OpenFilePlugin implements MethodCallHandler
             result.success(JsonUtil.toJson(map));
             isResultSubmitted = true;
         }
-    }
-
-    @Override
-    public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
-        this.flutterPluginBinding = binding;
-        context = flutterPluginBinding.getApplicationContext();
-        setup();
-    }
-
-    private void setup() {
-        channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "open_file");
-        channel.setMethodCallHandler(this);
-    }
-
-    @Override
-    public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
-        if (channel == null) {
-            // Could be on too low of an SDK to have started listening originally.
-            return;
-        }
-
-        channel.setMethodCallHandler(null);
-        channel = null;
-        this.flutterPluginBinding = null;
-    }
-
-    @Override
-    public void onAttachedToActivity(ActivityPluginBinding binding) {
-        setup();
-        activity = binding.getActivity();
-        binding.addRequestPermissionsResultListener(this);
-        binding.addActivityResultListener(this);
-    }
-
-    @Override
-    public void onDetachedFromActivityForConfigChanges() {
-        onDetachedFromActivity();
-    }
-
-    @Override
-    public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
-        onAttachedToActivity(binding);
-    }
-
-    @Override
-    public void onDetachedFromActivity() {
-        if (channel == null) {
-            return;
-        }
-        channel.setMethodCallHandler(null);
-        channel = null;
-        activity = null;
     }
 }
